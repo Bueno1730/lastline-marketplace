@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Line - Marketplace Digital Multi-Vendedor</title>
+    <meta name="description" content="Plataforma corporativa de compra y venta de productos digitales, juegos y licencias entre usuarios con proteccion Escrow.">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts: Outfit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <!-- Header dinámico -->
+    <header class="main-header">
+        <div class="container header-content">
+            <a href="#/" class="logo-group" id="logoLink">
+                <span class="logo-text">Last Line</span>
+                <span class="logo-tag">Marketplace</span>
+            </a>
+            
+            <nav class="nav-menu" id="userNav">
+                <!-- Los enlaces y botones de sesion se renderizan dinamicamente mediante JS -->
+            </nav>
+        </div>
+    </header>
+
+    <!-- Contenido Principal con Vistas SPA por Hash Routing -->
+    <main class="container">
+        
+        <!-- VISTA: INICIO / EXPLORAR MARKETPLACE (#/) -->
+        <section id="vista-inicio" class="view-section active">
+            <div class="hero-box">
+                <h1 class="hero-title">El Marketplace Digital de <span>Confianza</span></h1>
+                <p class="hero-desc">Compra y venta de juegos, claves de activacion, licencias de software y productos digitales con proteccion de fondos en custodia Escrow.</p>
+                
+                <!-- Botones de accion Hero (Se ocultan si el usuario ya inicio sesion) -->
+                <div id="heroActionButtons" style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                    <a href="#/dashboard-vendedor" class="btn btn-neon" id="heroBtnVender">Empezar a Vender</a>
+                    <button class="btn btn-outline" id="heroBtnRegistro" onclick="openModal('modalRegistro')">Crear Cuenta Gratis</button>
+                </div>
+
+                <div class="hero-stats">
+                    <div class="stat-item">
+                        <span class="stat-number" id="statsUsuariosCount">0</span>
+                        <span class="stat-label">Usuarios Registrados</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="statsProductosCount">0</span>
+                        <span class="stat-label">Productos Digitales</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-number" id="statsVendedoresCount">0</span>
+                        <span class="stat-label">Vendedores Verificados</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="view-header">
+                <h2 class="view-title">Catalogo <span>Multi-Vendedor</span></h2>
+                <span style="font-size: 0.9rem; color: var(--text-muted);">Productos Digitales con Fideicomiso Escrow</span>
+            </div>
+
+            <!-- Filtro de Categorías sin emojis -->
+            <div class="cat-filter-bar">
+                <button class="cat-pill active" onclick="filtrarCategoria('Todos', this)">Todos</button>
+                <button class="cat-pill" onclick="filtrarCategoria('Juegos', this)">Juegos</button>
+                <button class="cat-pill" onclick="filtrarCategoria('Suscripciones', this)">Suscripciones</button>
+                <button class="cat-pill" onclick="filtrarCategoria('Gift Cards', this)">Gift Cards</button>
+                <button class="cat-pill" onclick="filtrarCategoria('Software', this)">Software</button>
+            </div>
+
+            <!-- Grilla Dinámica de Productos -->
+            <div class="products-grid" id="catalogoProductosGrid">
+                <!-- Inyectado dinamicamente con JS -->
+            </div>
+        </section>
+
+        <!-- VISTA: MI PERFIL (#/perfil) -->
+        <section id="vista-perfil" class="view-section">
+            <div id="perfilContent">
+                <!-- Inyectado dinamicamente con JS -->
+            </div>
+        </section>
+
+        <!-- VISTA: PANEL ADMIN (#/admin) -->
+        <section id="vista-admin" class="view-section">
+            <div id="adminContent">
+                <!-- Inyectado dinamicamente con JS segun permisos -->
+            </div>
+        </section>
+
+        <!-- VISTA: MI TIENDA / DASHBOARD VENDEDOR (#/dashboard-vendedor) -->
+        <section id="vista-vendedor" class="view-section">
+            <div id="vendedorContent">
+                <!-- Inyectado dinamicamente con JS segun permisos -->
+            </div>
+        </section>
+
+        <!-- VISTA: MIS COMPRAS (#/mis-compras) -->
+        <section id="vista-compras" class="view-section">
+            <div id="misComprasContent">
+                <!-- Inyectado dinamicamente con JS -->
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="container">
+            <p>© 2026 <strong>Last Line Marketplace</strong>. Prohibida la venta de contenido no autorizado o cuentas robadas. <a href="javascript:void(0)" class="terms-link" onclick="abrirModalTerminos('lectura')">Términos y Condiciones</a></p>
+        </div>
+    </footer>
+
+    <!-- MODAL: INICIAR SESIÓN -->
+    <div class="modal-overlay" id="modalLogin" onclick="handleBackdropClick(event, 'modalLogin')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalLogin')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Iniciar Sesión</h2>
+                <p class="modal-subtitle">Accede a tu cuenta de Last Line Marketplace</p>
+            </div>
+
+            <div id="loginAlert" class="form-alert alert-error"></div>
+
+            <form id="formLogin" onsubmit="handleLoginSubmit(event)">
+                <div class="form-group">
+                    <label for="loginNombre">Nombre de Usuario</label>
+                    <input type="text" id="loginNombre" class="form-control" placeholder="admin o tu usuario" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="loginPassword">Contraseña</label>
+                    <input type="password" id="loginPassword" class="form-control" placeholder="Tu contraseña" required autocomplete="current-password">
+                </div>
+
+                <button type="submit" class="btn btn-neon" style="width: 100%; margin-top: 10px;">Ingresar a mi Cuenta</button>
+            </form>
+
+            <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                ¿No tienes una cuenta aún? 
+                <a href="javascript:void(0)" onclick="switchModal('modalLogin', 'modalRegistro')" style="color: var(--accent); font-weight: 600; text-decoration: none;">Registrate aquí</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRARSE (Sin checkbox de vendedor segun Requerimiento 2) -->
+    <div class="modal-overlay" id="modalRegistro" onclick="handleBackdropClick(event, 'modalRegistro')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalRegistro')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Crear Cuenta</h2>
+                <p class="modal-subtitle">Unete al marketplace de productos digitales</p>
+            </div>
+
+            <div id="registroAlert" class="form-alert alert-error"></div>
+
+            <form id="formRegistro" onsubmit="handleRegisterSubmit(event)">
+                <div class="form-group">
+                    <label for="regNombre">Nombre de Usuario</label>
+                    <input type="text" id="regNombre" class="form-control" placeholder="Nombre de usuario unico" required autocomplete="username">
+                </div>
+
+                <div class="form-group">
+                    <label for="regPassword">Contraseña</label>
+                    <input type="password" id="regPassword" class="form-control" placeholder="Minimo 4 caracteres" required autocomplete="new-password">
+                </div>
+
+                <!-- Enlace al documento legal completo -->
+                <div style="margin: 12px 0 4px;">
+                    <a href="javascript:void(0)" class="terms-link" onclick="abrirModalTerminos('registro')">Leer los Términos y Condiciones completos</a>
+                </div>
+
+                <!-- Checkbox OBLIGATORIO de Términos y Condiciones (se habilita al aceptar el documento) -->
+                <label class="checkbox-group checkbox-mandatory">
+                    <input type="checkbox" id="regTerminos" required disabled>
+                    <span class="checkbox-label">
+                        <strong>Acepto los Términos y Condiciones.</strong> Se habilita despues de leer el documento legal. Prohibida la venta de cuentas robadas o IPTV pirata. Sujeto a baneo inmediato.
+                    </span>
+                </label>
+
+                <button type="submit" class="btn btn-neon" style="width: 100%; margin-top: 15px;">Registrarse en Last Line</button>
+            </form>
+
+            <div style="margin-top: 20px; text-align: center; font-size: 0.85rem; color: var(--text-secondary);">
+                ¿Ya tienes una cuenta registrada? 
+                <a href="javascript:void(0)" onclick="switchModal('modalRegistro', 'modalLogin')" style="color: var(--accent); font-weight: 600; text-decoration: none;">Inicia sesion</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CHECKOUT SEGURO & QR DINÁMICO (FASE 2) -->
+    <div class="modal-overlay" id="modalCheckout" onclick="handleBackdropClick(event, 'modalCheckout')">
+        <div class="modal-card modal-checkout-card">
+            <button class="modal-close-btn" onclick="closeModal('modalCheckout')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Checkout <span>Seguro</span></h2>
+                <p class="modal-subtitle">Pasarela de Pago y Sistema Fideicomiso (Escrow)</p>
+            </div>
+
+            <!-- Banner Fideicomiso sin emojis -->
+            <div class="escrow-banner">
+                <div class="escrow-banner-text">
+                    <strong>Protección al Comprador (Fideicomiso / Escrow)</strong>
+                    Tu dinero no se entrega al vendedor inmediatamente. Permanece retenido de forma segura en Last Line hasta que recibas y verifiques tu producto digital.
+                </div>
+            </div>
+
+            <!-- Cuadrícula: Detalles del producto + QR Dinámico -->
+            <div class="checkout-grid checkout-modal-body">
+                <div class="checkout-product-summary">
+                    <img src="" alt="Producto" id="checkoutProdImg" class="checkout-prod-thumb">
+                    <h4 id="checkoutProdTitulo" style="color: #fff; font-size: 0.95rem; margin-bottom: 6px; line-height: 1.3;"></h4>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 12px;">
+                        <span>Vendedor: </span><strong id="checkoutProdVendedor" style="color: var(--accent);"></strong>
+                    </div>
+
+                    <div class="checkout-price-row">
+                        <span>Precio Base</span>
+                        <span id="checkoutPriceBase">$0.00 USD</span>
+                    </div>
+                    <div class="checkout-price-row">
+                        <span>Proteccion Escrow</span>
+                        <span style="color: #2ed573;">GRATIS</span>
+                    </div>
+                    <div class="checkout-total-row">
+                        <span>Total a Pagar</span>
+                        <span id="checkoutTotalVal">$0.00 USD</span>
+                    </div>
+                </div>
+
+                <div class="qr-container">
+                    <div class="qr-code-wrapper" id="checkoutQRWrapper">
+                        <!-- SVG QR generado dinamicamente -->
+                    </div>
+                    <div class="qr-amount-badge" id="checkoutQRAmount">$0.00 USD</div>
+                    <p class="qr-instruction-text">
+                        Escanea este QR para pagar a la cuenta oficial de Last Line. Tu dinero estará protegido hasta que recibas el producto.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Comprobante de pago: flujo real de verificacion -->
+            <div class="form-group" style="margin-top: 4px;">
+                <label for="checkoutComprobanteFile">Comprobante de Pago (captura o foto del comprobante)</label>
+                <input type="file" id="checkoutComprobanteFile" class="form-control" accept="image/*" onchange="previewComprobanteCheckout(event)">
+                <div id="checkoutComprobantePreview" style="display: none; margin-top: 8px; text-align: center;">
+                    <img id="checkoutComprobanteImg" src="" alt="Comprobante" style="max-height: 140px; border-radius: 6px; border: 1px solid var(--accent); background: #000000; padding: 4px;">
+                </div>
+            </div>
+
+            <button class="btn btn-neon" onclick="handleEnviarComprobantePago()" style="width: 100%; font-size: 1rem; padding: 12px;">
+                Ya realicé el pago — Enviar comprobante
+            </button>
+            <p style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 8px;">
+                Tu pedido entrara en verificacion. Una vez confirmada la transferencia se habilitara el chat con el vendedor.
+            </p>
+
+            <button class="btn btn-ghost" id="btnSimularPago" onclick="simularPagoExitoso()" style="width: 100%; margin-top: 8px; font-size: 0.85rem;">
+                Simular Pago Exitoso (Testing)
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: CREAR / PUBLICAR PRODUCTO (CRUD VENDEDOR) -->
+    <div class="modal-overlay" id="modalCrearProducto" onclick="handleBackdropClick(event, 'modalCrearProducto')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalCrearProducto')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Publicar <span>Producto</span></h2>
+                <p class="modal-subtitle">Añade un juego, clave o suscripcion a tu tienda</p>
+            </div>
+
+            <div id="crearProductoAlert" class="form-alert alert-error"></div>
+
+            <form id="formCrearProducto" onsubmit="handleGuardarProducto(event)">
+                <input type="hidden" id="crudProdId" value="">
+
+                <div class="form-group">
+                    <label for="crudProdTitulo">Título del Producto Digital</label>
+                    <input type="text" id="crudProdTitulo" class="form-control" placeholder="Ej: FIFA 24 Steam Key Global" required>
+                </div>
+
+                <!-- SELECTOR: TIPO DE PRECIO (REQUERIMIENTO 4) -->
+                <div class="form-group">
+                    <label for="crudProdTipoPrecio">Tipo de Control de Precio</label>
+                    <select id="crudProdTipoPrecio" class="form-control" onchange="toggleTipoPrecioCampos()" style="cursor: pointer;">
+                        <option value="fijo">Precio Fijo (en Bs.)</option>
+                        <option value="dinamico">Precio Dinámico (USD → Bs. según BCB + Margen %)</option>
+                    </select>
+                </div>
+
+                <!-- CAMPO: PRECIO FIJO EN BS -->
+                <div id="crudGrupoPrecioFijo" class="form-group">
+                    <label for="crudProdPrecioBs">Precio Final en Bs.</label>
+                    <input type="number" id="crudProdPrecioBs" class="form-control" placeholder="Ej: 250.00" step="0.01" min="1">
+                    <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">
+                        El precio de venta en el catálogo se mantendrá invariable.
+                    </span>
+                </div>
+
+                <!-- CAMPOS: PRECIO DINÁMICO EN USD + MARGEN -->
+                <div id="crudGrupoPrecioDinamico" style="display: none; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 177, 66, 0.3); padding: 14px; border-radius: var(--radius-sm); margin-bottom: 16px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="crudProdPrecioUSD">Precio Base en USD</label>
+                            <input type="number" id="crudProdPrecioUSD" class="form-control" placeholder="Ej: 25.00" step="0.01" min="0.1" oninput="actualizarCalculoPrecioDinamicoPreview()">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label for="crudProdMargenGanancia">Mi Margen de Ganancia (%)</label>
+                            <input type="number" id="crudProdMargenGanancia" class="form-control" placeholder="Ej: 15" step="1" min="0" max="500" oninput="actualizarCalculoPrecioDinamicoPreview()">
+                        </div>
+                    </div>
+                    <div id="crudDinamicoPreview" style="margin-top: 10px; font-size: 0.8rem; color: var(--accent); font-weight: 600;">
+                        <!-- Cálculo en vivo -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="crudProdCategoria">Categoría</label>
+                    <select id="crudProdCategoria" class="form-control" required style="cursor: pointer;">
+                        <option value="Juegos">Juegos</option>
+                        <option value="Suscripciones">Suscripciones</option>
+                        <option value="Gift Cards">Gift Cards</option>
+                        <option value="Software">Software</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="crudProdImagen">URL de Portada / Imagen</label>
+                    <input type="url" id="crudProdImagen" class="form-control" placeholder="https://ejemplo.com/portada.jpg" required>
+                    <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Sugerencias rapidas:</span>
+                        <a href="javascript:void(0)" onclick="setDemoImg(1)" style="font-size: 0.75rem; color: var(--accent);">Steam Demo</a>
+                        <a href="javascript:void(0)" onclick="setDemoImg(2)" style="font-size: 0.75rem; color: var(--accent);">Xbox Demo</a>
+                        <a href="javascript:void(0)" onclick="setDemoImg(3)" style="font-size: 0.75rem; color: var(--accent);">Software Demo</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-neon" id="btnGuardarProd" style="width: 100%; margin-top: 15px;">
+                    Guardar y Publicar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: SOLICITUD DE VENDEDOR (REQUERIMIENTO 2) -->
+    <div class="modal-overlay" id="modalSolicitudVendedor" onclick="handleBackdropClick(event, 'modalSolicitudVendedor')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalSolicitudVendedor')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Solicitud de <span>Vendedor</span></h2>
+                <p class="modal-subtitle">Completa el formulario para habilitar tu cuenta comercial</p>
+            </div>
+
+            <div id="solicitudVendedorAlert" class="form-alert alert-error"></div>
+
+            <form id="formSolicitudVendedor" onsubmit="handleEnviarSolicitudVendedor(event)">
+                <div class="form-group">
+                    <label for="solicitudNombreCompleto">Nombre Completo del Titular</label>
+                    <input type="text" id="solicitudNombreCompleto" class="form-control" placeholder="Nombre y Apellidos del titular" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="solicitudNumeroCuenta">Número de Cuenta Bancaria y Banco</label>
+                    <input type="text" id="solicitudNumeroCuenta" class="form-control" placeholder="Ej: Banco Mercantil Santa Cruz - Cuenta 4029... - Titular" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="solicitudQrBancario">Imagen de Código QR de Cobro</label>
+                    <input type="file" id="solicitudQrBancario" class="form-control" accept="image/*" onchange="previewSolicitudQR(event)" required>
+                    <div id="solicitudQrPreviewContainer" style="display: none; margin-top: 10px; text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 4px;">Vista previa del QR seleccionado:</span>
+                        <img id="solicitudQrPreviewImg" src="" alt="Vista Previa QR" style="max-height: 140px; border-radius: 6px; border: 1px solid var(--accent); padding: 4px; background: #ffffff;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Reglamento Oficial de Vendedores</label>
+                    <textarea readonly class="textarea-rules" rows="3">Prohibida la venta de IPTV, cuentas robadas o métodos ilegales. En caso de fraude, los fondos serán retenidos y la cuenta baneada.</textarea>
+                    <a href="javascript:void(0)" class="terms-link" style="font-size: 0.8rem; margin-top: 4px; display: inline-block;" onclick="abrirModalTerminos('vendedor')">Leer los Términos y Condiciones completos</a>
+                </div>
+
+                <label class="checkbox-group checkbox-mandatory">
+                    <input type="checkbox" id="solicitudAceptoReglamento" required disabled>
+                    <span class="checkbox-label">
+                        <strong>Acepto el Reglamento.</strong> Se habilita despues de leer el documento legal. Me comprometo a cumplir estrictamente los terminos comerciales y garantizo la legalidad de mis productos digitales.
+                    </span>
+                </label>
+
+                <button type="submit" class="btn btn-neon" style="width: 100%; margin-top: 15px;">
+                    Enviar Solicitud de Vendedor
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: SUSCRIPCIÓN VIP (REQUERIMIENTO 4) -->
+    <div class="modal-overlay" id="modalSuscripcionVIP" onclick="handleBackdropClick(event, 'modalSuscripcionVIP')">
+        <div class="modal-card modal-checkout-card">
+            <button class="modal-close-btn" onclick="closeModal('modalSuscripcionVIP')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Suscripción <span>Vendedor VIP</span></h2>
+                <p class="modal-subtitle">Comisión preferencial reducida al 2% por venta durante 30 días</p>
+            </div>
+
+            <div class="checkout-grid checkout-modal-body">
+                <div class="checkout-product-summary">
+                    <h4 style="color: #fff; font-size: 1rem; margin-bottom: 8px;">Membresía Vendedor VIP (30 Días)</h4>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 14px;">
+                        Tasa preferencial del 2% por venta, insignia VIP en el catalogo y prioridad en resolucion de soporte.
+                    </p>
+                    <div class="checkout-price-row">
+                        <span>Costo de Suscripcion</span>
+                        <span>Bs. 30.00</span>
+                    </div>
+                    <div class="checkout-price-row">
+                        <span>Vigencia</span>
+                        <span>30 dias continuos</span>
+                    </div>
+                    <div class="checkout-total-row">
+                        <span>Total a Pagar</span>
+                        <span style="color: var(--accent);">Bs. 30.00</span>
+                    </div>
+                </div>
+
+                <div class="qr-container">
+                    <div class="qr-code-wrapper" id="vipQRWrapper">
+                        <!-- SVG QR generado dinamicamente -->
+                    </div>
+                    <div class="qr-amount-badge">Bs. 30.00</div>
+                    <p class="qr-instruction-text">
+                        Escanea este QR bancario para abonar a la cuenta oficial de Last Line.
+                    </p>
+                </div>
+            </div>
+
+            <button class="btn btn-neon" onclick="simularPagoSuscripcionVIP()" style="width: 100%; font-size: 1rem; padding: 12px;">
+                Simular Pago Exitoso
+            </button>
+            <p style="text-align: center; font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">
+                Simula la confirmacion bancaria instantanea para la activacion inmediata de la membresia VIP.
+            </p>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTRAR PAGO A VENDEDOR (CORTE DE CAJA - REQUERIMIENTO 3) -->
+    <div class="modal-overlay" id="modalRegistrarPagoVendedor" onclick="handleBackdropClick(event, 'modalRegistrarPagoVendedor')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalRegistrarPagoVendedor')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Corte de Caja: <span>Registrar Pago</span></h2>
+                <p class="modal-subtitle">Sube el comprobante de transferencia bancaria y liquida el saldo del vendedor</p>
+            </div>
+
+            <div id="pagoVendedorAlert" class="form-alert alert-error"></div>
+
+            <form id="formRegistrarPagoVendedor" onsubmit="handleConfirmarPagoVendedor(event)">
+                <input type="hidden" id="pagoVendedorId" value="">
+
+                <div class="card" style="background: rgba(0, 0, 0, 0.35); padding: 14px; margin-bottom: 16px; border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Vendedor:</span>
+                        <strong id="pagoVendedorNombre" style="color: #ffffff;"></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Monto a Liquidar:</span>
+                        <strong id="pagoVendedorMonto" style="color: var(--accent); font-size: 1.25rem;"></strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: var(--text-muted); font-size: 0.85rem;">Cuenta Bancaria:</span>
+                        <span id="pagoVendedorCuenta" style="font-family: monospace; color: #ffffff; font-size: 0.9rem;"></span>
+                    </div>
+
+                    <div id="pagoVendedorQRWrap" style="text-align: center; margin-top: 10px; display: none;">
+                        <span style="font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 6px;">Escanear QR Bancario del Vendedor:</span>
+                        <img id="pagoVendedorQRImg" src="" alt="QR Vendedor" style="max-height: 150px; background: #ffffff; padding: 6px; border-radius: 6px; border: 1px solid var(--accent); cursor: pointer;" onclick="ampliarQRVendedorEnPago()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="pagoComprobanteFile">Comprobante de Transferencia Bancaria (Imagen)</label>
+                    <input type="file" id="pagoComprobanteFile" class="form-control" accept="image/*" onchange="previewComprobantePago(event)" required>
+                    <div id="pagoComprobantePreviewContainer" style="display: none; margin-top: 10px; text-align: center;">
+                        <span style="font-size: 0.75rem; color: var(--accent); display: block; margin-bottom: 4px;">Vista previa del comprobante:</span>
+                        <img id="pagoComprobantePreviewImg" src="" alt="Comprobante" style="max-height: 160px; border-radius: 6px; border: 1px solid var(--accent); background: #000000; object-fit: contain;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="pagoReferenciaInput">Número de Referencia Bancaria / Nota (Opcional)</label>
+                    <input type="text" id="pagoReferenciaInput" class="form-control" placeholder="Ej: REF-984210 / Transferencia Interbancaria">
+                </div>
+
+                <button type="submit" class="btn btn-neon" style="width: 100%; margin-top: 12px; padding: 12px; font-size: 1rem;">
+                    Confirmar Pago y Liquidar Saldo a Bs. 0.00
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: VISOR DE IMAGEN (QR O COMPROBANTE) -->
+    <div class="modal-overlay" id="modalVerImagen" onclick="handleBackdropClick(event, 'modalVerImagen')">
+        <div class="modal-card" style="max-width: 500px; text-align: center;">
+            <button class="modal-close-btn" onclick="closeModal('modalVerImagen')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h3 class="modal-title" id="visorImagenTitulo">Visualizador de Documento</h3>
+            </div>
+            <div style="margin: 15px 0;">
+                <img id="visorImagenSrc" src="" alt="Vista Documento" style="max-width: 100%; max-height: 420px; object-fit: contain; border-radius: 8px; border: 1px solid var(--accent); background: #000000; padding: 6px;">
+            </div>
+            <button class="btn btn-outline" onclick="closeModal('modalVerImagen')" style="width: 100%;">Cerrar</button>
+        </div>
+    </div>
+
+    <!-- MODAL: TÉRMINOS Y CONDICIONES LEGALES (REGISTRO / VENDEDOR / LECTURA) -->
+    <div class="modal-overlay" id="modalTerminos" onclick="handleBackdropClick(event, 'modalTerminos')">
+        <div class="modal-card" style="max-width: 640px;">
+            <button class="modal-close-btn" onclick="closeModal('modalTerminos')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Términos y <span>Condiciones</span></h2>
+                <p class="modal-subtitle">Documento legal del marketplace Last Line - Ultima actualizacion: Octubre 2026</p>
+            </div>
+
+            <div class="terms-scroll" id="terminosScrollContent" onscroll="verificarScrollTerminos()">
+                <h4>1. Objeto y Aceptación</h4>
+                <p>Last Line es un marketplace digital de intermediación que conecta a vendedores verificados con compradores en Bolivia para la adquisición de juegos, licencias, suscripciones, gift cards y software. Al crear una cuenta, ya sea como cliente o como vendedor, declaras haber leído, comprendido y aceptado íntegramente estos Términos y Condiciones.</p>
+
+                <h4>2. Productos Permitidos</h4>
+                <p>Solo pueden comercializarse productos digitales de procedencia legal y verificable: claves de activación oficiales (Steam, Xbox, PlayStation, etc.), juegos entregados mediante regalo oficial, suscripciones legítimas, gift cards originales y licencias de software válidas.</p>
+
+                <h4>3. Productos y Conductas Prohibidas</h4>
+                <ul>
+                    <li>Cuentas robadas, compartidas ilegalmente o con credenciales de terceros.</li>
+                    <li>IPTV, servicios de streaming pirata o cualquier contenido que viole derechos de autor.</li>
+                    <li>Claves obtenidas con tarjetas robadas, fraude, phishing u otros métodos ilícitos.</li>
+                    <li>Venta de datos personales, malware, cheats o cualquier bien ilegal.</li>
+                    <li>Intentar estafar a otra parte, dentro o fuera del sistema de pago Escrow.</li>
+                </ul>
+                <p>La infracción de estas reglas resulta en <strong>baneo inmediato de la cuenta</strong>, retención de fondos y, cuando corresponda, reporte a las autoridades competentes conforme al Código Penal boliviano (estafa y delitos informáticos) y a la Ley N.º 453 de Protección de los Derechos de los Usuarios y Consumidores.</p>
+
+                <h4>4. Sistema de Protección Escrow (Fideicomiso Virtual)</h4>
+                <p>Todo pago queda retenido por la plataforma y no se libera al vendedor hasta que el comprador confirme la recepción conforme del producto, o hasta que transcurra el plazo de confirmación automática. Ante un reporte o disputa, los fondos quedan congelados hasta la resolución administrativa.</p>
+
+                <h4>5. Obligaciones del Comprador</h4>
+                <ul>
+                    <li>Verificar el producto recibido y confirmar la entrega o reportar el problema dentro del plazo establecido.</li>
+                    <li>No abrir disputas falsas ni abusar del sistema de reembolsos.</li>
+                    <li>Proporcionar datos veraces para la entrega (código de amigo de Steam, correo de cuenta, etc.) únicamente a través del chat oficial de la transacción.</li>
+                </ul>
+
+                <h4>6. Obligaciones del Vendedor</h4>
+                <ul>
+                    <li>Garantizar la procedencia legal de cada producto publicado.</li>
+                    <li>Entregar el producto dentro del plazo ofrecido y marcar el pedido como entregado solo cuando el comprador lo haya recibido.</li>
+                    <li>Mantener actualizados sus datos bancarios y código QR de cobro.</li>
+                    <li>No solicitar ni aceptar pagos por fuera de la plataforma.</li>
+                </ul>
+
+                <h4>7. Comisiones y Suscripción VIP</h4>
+                <p>Last Line cobra una comisión del 8% por cada venta a vendedores estándar. La suscripción VIP (Bs. 30,00 mensuales) reduce la comisión al 2% y otorga mayor visibilidad. Las liquidaciones se realizan mediante cortes de caja con comprobante de transferencia bancaria.</p>
+
+                <h4>8. Precios y Tipo de Cambio</h4>
+                <p>Los vendedores pueden publicar con precio fijo en bolivianos (Bs.) o con precio dinámico en dólares (USD). El precio dinámico se convierte automáticamente a bolivianos según la cotización oficial de referencia del Banco Central de Bolivia (BCB) vigente en la plataforma, más el margen de ganancia definido por el vendedor.</p>
+
+                <h4>9. Chat de Transacción</h4>
+                <p>Tras cada pago confirmado se habilita un chat entre comprador y vendedor para coordinar la entrega (por ejemplo, compartir el código de amigo de Steam). El chat permanece activo durante 7 días y su contenido se conserva como evidencia: la administración podrá revisarlo en caso de disputa o reporte para detectar malentendidos o intentos de estafa.</p>
+
+                <h4>10. Disputas y Reembolsos</h4>
+                <p>Si el comprador reporta un problema, la administración revisará el chat y la evidencia disponible para resolver el caso: reembolsar el monto total al comprador o liberar el pago al vendedor. La decisión administrativa se considera final dentro de la plataforma.</p>
+
+                <h4>11. Reseñas y Calificaciones</h4>
+                <p>Al finalizar una compra, el comprador puede calificar al vendedor de 1 a 5 estrellas y dejar una reseña pública. Está prohibida la manipulación de reputación mediante reseñas falsas o autopromoción indebida.</p>
+
+                <h4>12. Suspensión y Terminación</h4>
+                <p>Last Line puede suspender o eliminar cuentas por fraude, venta de productos prohibidos, disputas reiteradas o incumplimiento de estos términos, con retención de los fondos asociados a ventas bajo investigación.</p>
+
+                <h4>13. Legislación Aplicable</h4>
+                <p>Estos términos se rigen por las leyes del Estado Plurinacional de Bolivia, incluyendo el Código Penal, la Ley N.º 453 de Protección de los Derechos de los Usuarios y Consumidores y la normativa de comercio electrónico vigente.</p>
+            </div>
+
+            <div class="form-alert alert-error" id="terminosAviso" style="display: block;">
+                Desplázate hasta el final del documento para habilitar el botón de aceptación.
+            </div>
+
+            <button class="btn btn-neon" id="btnAceptarTerminos" onclick="aceptarTerminos()" style="width: 100%; padding: 12px;" disabled>
+                He leído y acepto los Términos y Condiciones
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: CHAT DE TRANSACCIÓN CLIENTE-VENDEDOR (7 DÍAS) -->
+    <div class="modal-overlay" id="modalChat" onclick="handleBackdropClick(event, 'modalChat')">
+        <div class="modal-card modal-chat-card">
+            <button class="modal-close-btn" onclick="cerrarChat()" title="Cerrar">&times;</button>
+            <div class="modal-header" style="margin-bottom: 14px;">
+                <h2 class="modal-title">Chat de <span>Transacción</span></h2>
+                <p class="modal-subtitle" id="chatSubtitulo"></p>
+            </div>
+
+            <div id="chatEstadoBanner"></div>
+
+            <div class="chat-messages" id="chatMensajesContainer">
+                <!-- Mensajes inyectados dinámicamente -->
+            </div>
+
+            <div class="chat-input-row" id="chatInputArea">
+                <input type="text" id="chatInputTexto" class="form-control" placeholder="Escribe un mensaje..." maxlength="500" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();enviarMensajeChat();}">
+                <button class="btn btn-neon" onclick="enviarMensajeChat()">Enviar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: REENVIAR COMPROBANTE DE PAGO -->
+    <div class="modal-overlay" id="modalReenviarComprobante" onclick="handleBackdropClick(event, 'modalReenviarComprobante')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalReenviarComprobante')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Reenviar <span>Comprobante</span></h2>
+                <p class="modal-subtitle" id="reenvioComprobanteSub"></p>
+            </div>
+            <div class="form-alert alert-error" id="reenvioMotivoTexto" style="display: none;"></div>
+            <div class="form-group">
+                <label for="reenvioComprobanteFile">Nuevo comprobante de pago (captura o foto)</label>
+                <input type="file" id="reenvioComprobanteFile" class="form-control" accept="image/*" onchange="previewComprobanteReenvio(event)">
+                <div id="reenvioPreviewWrap" style="display: none; margin-top: 8px; text-align: center;">
+                    <img id="reenvioPreviewImg" src="" alt="Comprobante" style="max-height: 140px; border-radius: 6px; border: 1px solid var(--accent); background: #000000; padding: 4px;">
+                </div>
+            </div>
+            <button class="btn btn-neon" onclick="handleReenviarComprobante()" style="width: 100%; padding: 12px;">
+                Enviar Nuevo Comprobante
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL: CALIFICAR VENDEDOR Y DEJAR RESEÑA -->
+    <div class="modal-overlay" id="modalResena" onclick="handleBackdropClick(event, 'modalResena')">
+        <div class="modal-card">
+            <button class="modal-close-btn" onclick="closeModal('modalResena')" title="Cerrar">&times;</button>
+            <div class="modal-header">
+                <h2 class="modal-title">Calificar <span>Vendedor</span></h2>
+                <p class="modal-subtitle" id="resenaSubtitulo"></p>
+            </div>
+
+            <div class="star-rating-input" id="resenaEstrellasInput">
+                <button type="button" class="star-btn" onclick="seleccionarEstrellas(1)">★</button>
+                <button type="button" class="star-btn" onclick="seleccionarEstrellas(2)">★</button>
+                <button type="button" class="star-btn" onclick="seleccionarEstrellas(3)">★</button>
+                <button type="button" class="star-btn" onclick="seleccionarEstrellas(4)">★</button>
+                <button type="button" class="star-btn" onclick="seleccionarEstrellas(5)">★</button>
+            </div>
+
+            <div class="form-group">
+                <label for="resenaTexto">Tu reseña (opcional)</label>
+                <textarea id="resenaTexto" class="form-control" rows="3" maxlength="300" placeholder="Ej: Entrega rápida, código válido, vendedor recomendado." style="resize: vertical;"></textarea>
+            </div>
+
+            <button class="btn btn-neon" onclick="handleEnviarResena()" style="width: 100%; padding: 12px;">
+                Enviar Calificación
+            </button>
+        </div>
+    </div>
+
+    <!-- Contenedor de Notificaciones Toast -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
