@@ -921,6 +921,7 @@ function handleEnviarComprobantePago() {
         productoTitulo: productoEnCheckout.titulo,
         productoImagen: productoEnCheckout.imagen,
         vendedorNombre: vendedor ? vendedor.nombre : 'Vendedor Verificado',
+        clienteNombre: user.nombre,
         comprobantePago: comprobanteCheckoutTemporal,
         timestampEntrega: null
     };
@@ -928,6 +929,9 @@ function handleEnviarComprobantePago() {
     const pedidos = getPedidos();
     pedidos.unshift(nuevoPedido);
     savePedidos(pedidos);
+
+    // Registrar el pedido en la cola compartida (nube) para verificacion
+    registrarPedidoEnNube(nuevoPedido, comprobanteCheckoutTemporal);
 
     closeModal('modalCheckout');
     showToast("Comprobante enviado. Verificaremos tu pago y habilitaremos el chat.", "success");
@@ -1031,11 +1035,151 @@ function handleReenviarComprobante() {
     delete pedido.motivoRechazoPago;
     savePedidos(pedidos);
 
+    // Actualizar el registro en la nube con el nuevo comprobante
+    registrarPedidoEnNube(pedido, reenvioComprobanteTemporal);
+
     closeModal('modalReenviarComprobante');
     showToast('Comprobante reenviado. Lo verificaremos nuevamente.', 'success');
     reenvioPedidoId = null;
     reenvioComprobanteTemporal = null;
     renderCompras();
+}
+
+// --- 5C. SINCRONIZACION DE PAGOS CON LA NUBE (Supabase via API de Vercel) ---
+// El estado 'pendiente' del pago vive en la nube compartida; el frontend solo
+// refleja el resultado. La confirmacion real la hace el servidor cuando
+// MacroDroid envia la notificacion del banco, o el admin la confirma a mano.
+
+function registrarPedidoEnNube(pedido, comprobanteBase64) {
+    try {
+        fetch('/api/registrar-pedido', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: pedido.id,
+                cliente: pedido.clienteNombre || 'Cliente',
+                producto: pedido.productoTitulo || 'Producto',
+                monto: pedido.montoTotal,
+                comprobante: comprobanteBase64 || null
+            })
+        }).catch(() => {});
+    } catch (e) { /* sin nube: sigue funcionando en local */ }
+}
+
+// Consulta periodicamente si el servidor ya verifico los pagos pendientes
+function verificarPagosPendientesNube() {
+    const pendientes = getPedidos().filter(p => p.estado === 'Pago_En_Verificacion');
+    if (!pendientes.length) return;
+    pendientes.forEach(async ped => {
+        try {
+            const r = await fetch(`/api/estado-pago?id=${ped.id}`);
+            if (!r.ok) return;
+            const data = await r.json();
+            const lista = getPedidos();
+            const p2 = lista.find(x => x.id === ped.id);
+            if (!p2) return;
+            if (data.estado === 'verificado') {
+                p2.estado = 'Pagado_EsperandoEntrega';
+                p2.fechaPagoVerificado = Date.now();
+                savePedidos(lista);
+                crearChatParaPedido(p2);
+                showToast(`Pago del pedido #${p2.id} verificado automaticamente. Chat habilitado.`, 'success');
+                if (window.location.hash === '#/mis-compras') renderCompras();
+            } else if (data.estado === 'rechazado') {
+                p2.estado = 'Pago_Rechazado';
+                savePedidos(lista);
+                if (window.location.hash === '#/mis-compras') renderCompras();
+            }
+        } catch (e) { /* sin conexion: reintenta en el proximo ciclo */ }
+    });
+}
+setInterval(verificarPagosPendientesNube, 15000);
+
+// --- Cola de pagos compartida en el panel admin ---
+function getPagoAdminToken() {
+    let t = localStorage.getItem('pagoAdminToken');
+    if (t === null) {
+        t = prompt('Token de administrador para acceder a los pagos compartidos (se guarda en este navegador):') || '';
+        localStorage.setItem('pagoAdminToken', t);
+    }
+    return t;
+}
+
+let pagosNubeCache = {};
+
+async function cargarPagosNubeAdmin() {
+    const cont = document.getElementById('adminPagosNube');
+    if (!cont) return;
+    cont.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Cargando pagos compartidos…</p>';
+    try {
+        const r = await fetch('/api/pagos-admin?token=' + encodeURIComponent(getPagoAdminToken()));
+        const data = await r.json();
+        if (!r.ok) {
+            cont.innerHTML = `<p style="color: var(--danger); font-size: 0.85rem;">Acceso denegado. <a href="#" onclick="localStorage.removeItem('pagoAdminToken'); cargarPagosNubeAdmin(); return false;">Cambiar token</a></p>`;
+            return;
+        }
+        pagosNubeCache = {};
+        (data.pendientes || []).forEach(p => { pagosNubeCache[p.id] = p; });
+        const pend = data.pendientes || [];
+        const notifs = data.notificaciones || [];
+        cont.innerHTML = `
+            ${pend.length === 0 ? `<p style="color: var(--text-muted); font-size: 0.85rem;">Sin pagos compartidos pendientes.</p>` : `
+                <table class="crud-table" style="margin-top: 8px;">
+                    <thead><tr><th>Pedido / Fecha</th><th>Cliente</th><th>Producto</th><th>Monto</th><th>Comprobante</th><th style="text-align: right;">Accion</th></tr></thead>
+                    <tbody>
+                        ${pend.map(p => `
+                            <tr>
+                                <td><strong>#${p.id}</strong><br><span style="font-size:0.75rem; color:var(--text-muted);">${new Date(p.creado_en).toLocaleString('es-ES')}</span></td>
+                                <td>${escapeHTML(p.cliente)}</td>
+                                <td style="font-size:0.85rem;">${escapeHTML(p.producto)}</td>
+                                <td style="font-weight:700; color: var(--accent);">Bs. ${Number(p.monto).toFixed(2)}</td>
+                                <td>${p.comprobante ? `<button class="btn btn-outline btn-sm" onclick="verComprobanteNube(${p.id})">Ver</button>` : '-'}</td>
+                                <td style="text-align: right;">
+                                    <button class="btn btn-neon btn-sm" onclick="accionPagoNube(${p.id}, 'confirmar')">Confirmar</button>
+                                    <button class="btn btn-danger btn-sm" onclick="accionPagoNube(${p.id}, 'rechazar')" style="margin-left: 6px;">Rechazar</button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>`}
+            ${notifs.length > 0 ? `
+                <h4 style="margin-top: 18px; color: var(--accent); font-size: 0.95rem;">Notificaciones del banco recibidas (auditoria)</h4>
+                <table class="crud-table" style="margin-top: 8px;">
+                    <thead><tr><th>Fecha</th><th>Texto</th><th>Monto</th><th>Resultado</th></tr></thead>
+                    <tbody>
+                        ${notifs.map(n => `
+                            <tr>
+                                <td style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap;">${new Date(n.creado_en).toLocaleString('es-ES')}</td>
+                                <td style="font-size:0.8rem; max-width: 340px;">${escapeHTML((n.texto || '').slice(0, 140))}</td>
+                                <td>${n.monto_detectado ? 'Bs. ' + Number(n.monto_detectado).toFixed(2) : '-'}</td>
+                                <td style="font-size:0.8rem; color:${n.resultado === 'confirmado' ? 'var(--accent)' : 'var(--text-muted)'};">${n.resultado === 'confirmado' ? 'Pedido #' + n.pedido_asociado : 'Sin coincidencia'}</td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>` : ''}
+        `;
+    } catch (e) {
+        cont.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Sin conexion a la nube de pagos.</p>';
+    }
+}
+
+function verComprobanteNube(id) {
+    const p = pagosNubeCache[id];
+    if (p && p.comprobante) abrirModalVerImagen(p.comprobante, `Comprobante — Pedido #${id}`);
+}
+
+async function accionPagoNube(id, accion) {
+    let motivo = '';
+    if (accion === 'rechazar') {
+        motivo = prompt('Motivo del rechazo (visible para el cliente):') || '';
+        if (motivo === null) return;
+    } else if (!confirm(`Confirmar el pago del pedido #${id} en la nube? El cliente vera su pedido como verificado.`)) {
+        return;
+    }
+    await fetch('/api/pagos-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: getPagoAdminToken(), id, accion, motivo })
+    }).catch(() => showToast('Sin conexion a la nube.', 'error'));
+    cargarPagosNubeAdmin();
 }
 
 // --- 6. AUTOMATIZACIÓN DE ENTREGA (10 MIN) Y ESCROW (REQUERIMIENTO 3) ---
@@ -2507,6 +2651,17 @@ function renderAdmin() {
                     </div>
                 `}
             </div>
+
+            <!-- Cola compartida en la nube: pedidos de TODOS los dispositivos + auditoria de notificaciones bancarias -->
+            <div class="card" style="margin-top: 16px;">
+                <div style="margin-bottom: 10px;">
+                    <h3 style="color: var(--accent); margin-bottom: 4px;">Pagos Compartidos en la Nube</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin: 0;">
+                        Pedidos enviados por clientes desde cualquier dispositivo. La notificacion del banco los confirma automaticamente; aqui tambien puedes verificar a mano.
+                    </p>
+                </div>
+                <div id="adminPagosNube"></div>
+            </div>
         </div>
 
         <!-- PESTAÑA 2: GESTIÓN DE DISPUTAS (REQUERIMIENTO 1) -->
@@ -2867,6 +3022,9 @@ function renderAdmin() {
             </div>
         </div>
     `;
+
+    // Cargar la cola de pagos compartidos (nube) si la pestaña activa lo requiere
+    if (adminTabActiva === 'pagos') cargarPagosNubeAdmin();
 }
 
 // Handlers administrativos para Tasa de Cambio, Disputas y Cortes de Caja
