@@ -829,6 +829,7 @@ function handleEnviarComprobantePago() {
 
     const usuarios = getUsuarios();
     const vendedor = usuarios.find(u => u.id === productoEnCheckout.id_vendedor);
+    const vendedorNombre = (vendedor && vendedor.nombre) || productoEnCheckout.vendedorNombre || 'Vendedor Verificado';
     const montoCalculado = calcularPrecioProducto(productoEnCheckout);
 
     const nuevoPedido = {

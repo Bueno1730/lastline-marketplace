@@ -597,6 +597,10 @@ main {
     padding: 32px;
     position: relative;
     animation: popUpModal 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
 @keyframes popUpModal {
