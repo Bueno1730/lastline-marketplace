@@ -8,90 +8,6 @@ const DEFAULT_AVATAR = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 // QR Bancario de demostración en Base64
 const SAMPLE_QR_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="%23ffffff"/><rect x="20" y="20" width="50" height="50" fill="%23162019"/><rect x="30" y="30" width="30" height="30" fill="%23ffffff"/><rect x="38" y="38" width="14" height="14" fill="%23162019"/><rect x="130" y="20" width="50" height="50" fill="%23162019"/><rect x="140" y="30" width="30" height="30" fill="%23ffffff"/><rect x="148" y="38" width="14" height="14" fill="%23162019"/><rect x="20" y="130" width="50" height="50" fill="%23162019"/><rect x="30" y="140" width="30" height="30" fill="%23ffffff"/><rect x="38" y="148" width="14" height="14" fill="%23162019"/><rect x="90" y="30" width="20" height="40" fill="%23162019"/><rect x="90" y="90" width="20" height="20" fill="%23162019"/><rect x="130" y="90" width="40" height="20" fill="%23162019"/><rect x="90" y="130" width="40" height="40" fill="%23162019"/><rect x="150" y="140" width="20" height="30" fill="%23162019"/><circle cx="100" cy="100" r="10" fill="%23d5f59c"/></svg>';
 
-// Catalogo corporativo de productos digitales (Precios Fijos vs Dinámicos)
-const PRODUCTOS_INICIALES = [
-    {
-        id: 101,
-        id_vendedor: 2,
-        titulo: "Cyberpunk 2077: Phantom Liberty Bundle (Steam Key Global)",
-        tipoPrecio: "dinamico",
-        precioUSD: 34.99,
-        margenGanancia: 15,
-        precio: 403,
-        imagen: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg",
-        categoria: "Juegos"
-    },
-    {
-        id: 102,
-        id_vendedor: 3,
-        titulo: "Elden Ring + Shadow of the Erdtree (Steam Key LATAM)",
-        tipoPrecio: "dinamico",
-        precioUSD: 49.99,
-        margenGanancia: 10,
-        precio: 550,
-        imagen: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1245620/header.jpg",
-        categoria: "Juegos"
-    },
-    {
-        id: 103,
-        id_vendedor: 2,
-        titulo: "Xbox Game Pass Ultimate - 3 Meses Global (Codigo Digital)",
-        tipoPrecio: "fijo",
-        precio: 250.00,
-        imagen: "https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80",
-        categoria: "Suscripciones"
-    },
-    {
-        id: 104,
-        id_vendedor: 2,
-        titulo: "PlayStation Store Gift Card $50 USD (Codigo Digital)",
-        tipoPrecio: "dinamico",
-        precioUSD: 46.50,
-        margenGanancia: 8,
-        precio: 503,
-        imagen: "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80",
-        categoria: "Gift Cards"
-    },
-    {
-        id: 105,
-        id_vendedor: 3,
-        titulo: "Windows 11 Pro OEM - Licencia Digital Vitalicia (Act. Inmediata)",
-        tipoPrecio: "fijo",
-        precio: 150.00,
-        imagen: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80",
-        categoria: "Software"
-    },
-    {
-        id: 106,
-        id_vendedor: 2,
-        titulo: "Spotify Premium 6 Meses Individual (Codigo Prepago)",
-        tipoPrecio: "fijo",
-        precio: 199.00,
-        imagen: "https://images.unsplash.com/photo-1614680376593-902f749f7ffc?w=600&auto=format&fit=crop&q=80",
-        categoria: "Suscripciones"
-    },
-    {
-        id: 107,
-        id_vendedor: 3,
-        titulo: "Red Dead Redemption 2 - Special Edition (Rockstar / Steam)",
-        tipoPrecio: "dinamico",
-        precioUSD: 21.50,
-        margenGanancia: 12,
-        precio: 241,
-        imagen: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1174180/header.jpg",
-        categoria: "Juegos"
-    },
-    {
-        id: 108,
-        id_vendedor: 3,
-        titulo: "Steam Wallet Card $20 USD (Codigo de Saldo Directo)",
-        tipoPrecio: "fijo",
-        precio: 195.00,
-        imagen: "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=600&auto=format&fit=crop&q=80",
-        categoria: "Gift Cards"
-    }
-];
-
 // Constante de automatizacion: 10 Minutos para auto-confirmacion
 const TIEMPO_AUTO_CONFIRMACION_MS = 10 * 60 * 1000;
 
@@ -179,56 +95,10 @@ function initDB() {
         localStorage.setItem('historialPagosVendedores', JSON.stringify([]));
     }
     if (!localStorage.getItem('chats')) {
-        // Chat de demostracion vinculado al pedido en disputa #1001 (ejemplo: codigo de amigo de Steam)
-        const ahora = Date.now();
-        localStorage.setItem('chats', JSON.stringify([{
-            id: 8001,
-            id_pedido: 1001,
-            id_cliente: 1,
-            id_vendedor: 2,
-            productoTitulo: "Cyberpunk 2077: Phantom Liberty Bundle (Steam Key Global)",
-            fechaCreacion: ahora - 3600000,
-            fechaExpiracion: ahora - 3600000 + DURACION_CHAT_MS,
-            ultimaLecturaCliente: ahora - 3400000,
-            ultimaLecturaVendedor: ahora - 3400000,
-            ultimaLecturaAdmin: 0,
-            mensajes: [
-                { id: 1, sistema: true, texto: 'Chat de transacción abierto. Cliente y vendedor pueden coordinar aquí la entrega (códigos de amigo, claves, usuarios, etc.). Disponible por 7 días y conservado como evidencia para soporte.', timestamp: ahora - 3600000 },
-                { id: 2, sistema: false, emisorId: 2, emisorNombre: 'NexusKeys_Store', rolEmisor: 'vendedor', texto: 'Hola, ya procesé tu pago. Para enviarte el juego como regalo de Steam necesito tu código de amigo.', timestamp: ahora - 3500000 },
-                { id: 3, sistema: false, emisorId: 1, emisorNombre: 'admin', rolEmisor: 'cliente', texto: 'Perfecto, mi código de amigo de Steam es 123456789. Quedo atento.', timestamp: ahora - 3400000 }
-            ]
-        }]));
+        localStorage.setItem('chats', JSON.stringify([]));
     }
     if (!localStorage.getItem('resenas')) {
-        // Reseñas de demostracion para mostrar reputacion en el catalogo
-        localStorage.setItem('resenas', JSON.stringify([
-            {
-                id: 9001,
-                id_pedido: 0,
-                id_vendedor: 2,
-                id_cliente: 1,
-                nombreCliente: 'admin',
-                vendedorNombre: 'NexusKeys_Store',
-                productoTitulo: 'Xbox Game Pass Ultimate - 3 Meses Global',
-                estrellas: 5,
-                comentario: 'Entrega rapida y codigo valido. Vendedor totalmente confiable.',
-                fecha: new Date(Date.now() - 2 * 86400000).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                timestamp: Date.now() - 2 * 86400000
-            },
-            {
-                id: 9002,
-                id_pedido: 0,
-                id_vendedor: 3,
-                id_cliente: 1,
-                nombreCliente: 'admin',
-                vendedorNombre: 'CyberDigital_LATAM',
-                productoTitulo: 'Windows 11 Pro OEM - Licencia Digital',
-                estrellas: 4,
-                comentario: 'La licencia activo correctamente, aunque la entrega tardo unos minutos.',
-                fecha: new Date(Date.now() - 86400000).toLocaleString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
-                timestamp: Date.now() - 86400000
-            }
-        ]));
+        localStorage.setItem('resenas', JSON.stringify([]));
     }
 
     // 1. Usuarios
@@ -237,8 +107,8 @@ function initDB() {
         const defaultUsers = [
             {
                 id: 1,
-                nombre: 'admin',
-                password: 'admin123',
+                nombre: 'Bueno17A',
+                password: 'Pablobueno17',
                 rol: 'admin',
                 avatar: '',
                 saldoVirtual: 1000,
@@ -246,34 +116,6 @@ function initDB() {
                 estadoCuenta: 'activo',
                 fechaExpiracionVIP: Date.now() + (365 * 24 * 60 * 60 * 1000),
                 numeroCuenta: 'Banco Central - Cta 001-ADMIN-OFICIAL',
-                qrBancario: SAMPLE_QR_SVG
-            },
-            {
-                id: 2,
-                nombre: 'NexusKeys_Store',
-                nombreCompleto: 'Nexus Keys Digital SRL',
-                password: 'vendor123',
-                rol: 'vendedor',
-                avatar: '',
-                saldoVirtual: 520.00,
-                estadoCuenta: 'activo',
-                esVIP: true,
-                fechaExpiracionVIP: Date.now() + (30 * 24 * 60 * 60 * 1000),
-                numeroCuenta: 'Banco Mercantil Santa Cruz - Cta 4012948210',
-                qrBancario: SAMPLE_QR_SVG
-            },
-            {
-                id: 3,
-                nombre: 'CyberDigital_LATAM',
-                nombreCompleto: 'Cyber Digital Bolivia',
-                password: 'vendor456',
-                rol: 'vendedor',
-                avatar: '',
-                saldoVirtual: 210.50,
-                estadoCuenta: 'activo',
-                esVIP: false,
-                fechaExpiracionVIP: null,
-                numeroCuenta: 'Banco Nacional de Bolivia - Cta 1500293841',
                 qrBancario: SAMPLE_QR_SVG
             }
         ];
@@ -320,12 +162,12 @@ function initDB() {
             });
 
             // Verificar admin oficial
-            let adminUser = parsedUsers.find(u => u.nombre && u.nombre.toLowerCase() === 'admin');
+            let adminUser = parsedUsers.find(u => u.nombre && u.nombre.toLowerCase() === 'bueno17a');
             if (!adminUser) {
                 parsedUsers.push({
                     id: 1,
-                    nombre: 'admin',
-                    password: 'admin123',
+                    nombre: 'Bueno17A',
+                    password: 'Pablobueno17',
                     rol: 'admin',
                     avatar: '',
                     estadoCuenta: 'activo',
@@ -337,7 +179,7 @@ function initDB() {
                 });
                 needsSave = true;
             } else {
-                adminUser.password = 'admin123';
+                adminUser.password = 'Pablobueno17';
                 adminUser.rol = 'admin';
                 needsSave = true;
             }
@@ -353,7 +195,7 @@ function initDB() {
     // 2. Productos
     const storedProducts = localStorage.getItem('productos');
     if (!storedProducts) {
-        localStorage.setItem('productos', JSON.stringify(PRODUCTOS_INICIALES));
+        localStorage.setItem('productos', JSON.stringify([]));
     } else {
         try {
             let parsedProds = JSON.parse(storedProducts);
@@ -366,42 +208,18 @@ function initDB() {
                 }
                 return p;
             });
-            if (parsedProds.length < 5) {
-                localStorage.setItem('productos', JSON.stringify(PRODUCTOS_INICIALES));
-            } else if (updated) {
+            if (updated) {
                 localStorage.setItem('productos', JSON.stringify(parsedProds));
             }
         } catch {
-            localStorage.setItem('productos', JSON.stringify(PRODUCTOS_INICIALES));
+            localStorage.setItem('productos', JSON.stringify([]));
         }
     }
 
     // 3. Pedidos
     const storedOrders = localStorage.getItem('pedidos');
     if (!storedOrders) {
-        // Pedido de muestra en disputa para verificar inmediatamente Requerimiento 1
-        const initialOrders = [
-            {
-                id: 1001,
-                id_cliente: 1,
-                id_vendedor: 2,
-                id_producto: 101,
-                montoTotal: 403.00,
-                estado: "En_Disputa",
-                fecha: new Date(Date.now() - 3600000).toLocaleString('es-ES', { 
-                    day: '2-digit', 
-                    month: 'short', 
-                    year: 'numeric', 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
-                }),
-                productoTitulo: "Cyberpunk 2077: Phantom Liberty Bundle (Steam Key Global)",
-                productoImagen: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg",
-                vendedorNombre: "NexusKeys_Store",
-                fechaDisputa: Date.now() - 3600000
-            }
-        ];
-        localStorage.setItem('pedidos', JSON.stringify(initialOrders));
+        localStorage.setItem('pedidos', JSON.stringify([]));
     } else {
         try {
             let parsedOrders = JSON.parse(storedOrders);
@@ -413,30 +231,6 @@ function initDB() {
                 }
                 return p;
             });
-
-            // Si no hay pedidos en disputa, agregar uno de prueba para el panel de disputas
-            if (!parsedOrders.some(p => p.estado === 'En_Disputa')) {
-                parsedOrders.unshift({
-                    id: 1001,
-                    id_cliente: 1,
-                    id_vendedor: 2,
-                    id_producto: 101,
-                    montoTotal: 403.00,
-                    estado: "En_Disputa",
-                    fecha: new Date(Date.now() - 3600000).toLocaleString('es-ES', { 
-                        day: '2-digit', 
-                        month: 'short', 
-                        year: 'numeric', 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                    }),
-                    productoTitulo: "Cyberpunk 2077: Phantom Liberty Bundle (Steam Key Global)",
-                    productoImagen: "https://shared.cloudflare.steamstatic.com/store_item_assets/steam/apps/1091500/header.jpg",
-                    vendedorNombre: "NexusKeys_Store",
-                    fechaDisputa: Date.now() - 3600000
-                });
-                updated = true;
-            }
 
             if (updated) localStorage.setItem('pedidos', JSON.stringify(parsedOrders));
         } catch {}
@@ -461,29 +255,49 @@ function initDB() {
     }
 }
 
-// Helpers de BD
+// Helpers de BD — cache en memoria para evitar JSON.parse en cada lectura.
+// Las lecturas repiten el mismo array (por referencia); las mutaciones se
+// persisten solo cuando el llamador invoca el save* correspondiente.
+const _dbCache = {};
+
+function _getTable(key) {
+    if (_dbCache[key] === undefined) {
+        try {
+            _dbCache[key] = JSON.parse(localStorage.getItem(key)) || [];
+        } catch {
+            _dbCache[key] = [];
+        }
+    }
+    return _dbCache[key];
+}
+
+function _setTable(key, data) {
+    _dbCache[key] = data;
+    localStorage.setItem(key, JSON.stringify(data));
+}
+
 function getUsuarios() {
-    return JSON.parse(localStorage.getItem('usuarios')) || [];
+    return _getTable('usuarios');
 }
 
 function saveUsuarios(usuarios) {
-    localStorage.setItem('usuarios', JSON.stringify(usuarios));
+    _setTable('usuarios', usuarios);
 }
 
 function getProductos() {
-    return JSON.parse(localStorage.getItem('productos')) || [];
+    return _getTable('productos');
 }
 
 function saveProductos(productos) {
-    localStorage.setItem('productos', JSON.stringify(productos));
+    _setTable('productos', productos);
 }
 
 function getPedidos() {
-    return JSON.parse(localStorage.getItem('pedidos')) || [];
+    return _getTable('pedidos');
 }
 
 function savePedidos(pedidos) {
-    localStorage.setItem('pedidos', JSON.stringify(pedidos));
+    _setTable('pedidos', pedidos);
 }
 
 function getUsuarioActual() {
@@ -1553,7 +1367,7 @@ function renderVendedor() {
                     Tu cuenta está registrada como <strong>Vendedor Pendiente</strong>. La administración de Last Line está validando tus datos comerciales.
                 </p>
                 <div style="background: rgba(255, 159, 67, 0.1); border: 1px solid rgba(255, 159, 67, 0.3); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 24px; font-size: 0.9rem; color: #ff9f43;">
-                    Tip de prueba: Puedes ingresar como <strong>admin</strong> (contraseña: <code>admin123</code>) en el panel de administrador para aprobar esta solicitud.
+                    Recibirás una respuesta de la administración en un plazo de 24 a 48 horas.
                 </div>
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button class="btn btn-danger" onclick="cancelarSolicitudVendedor()">Cancelar Solicitud de Vendedor</button>
@@ -3893,15 +3707,11 @@ function aceptarTerminos() {
 
 // --- 16. CHAT DE TRANSACCIÓN CLIENTE-VENDEDOR (DURACIÓN 7 DÍAS) ---
 function getChats() {
-    try {
-        return JSON.parse(localStorage.getItem('chats')) || [];
-    } catch {
-        return [];
-    }
+    return _getTable('chats');
 }
 
 function saveChats(chats) {
-    localStorage.setItem('chats', JSON.stringify(chats));
+    _setTable('chats', chats);
 }
 
 function getChatPorPedido(pedidoId) {
@@ -4155,15 +3965,11 @@ function enviarMensajeChat() {
 
 // --- 17. CALIFICACIONES Y RESEÑAS DEL VENDEDOR ---
 function getResenas() {
-    try {
-        return JSON.parse(localStorage.getItem('resenas')) || [];
-    } catch {
-        return [];
-    }
+    return _getTable('resenas');
 }
 
 function saveResenas(resenas) {
-    localStorage.setItem('resenas', JSON.stringify(resenas));
+    _setTable('resenas', resenas);
 }
 
 // Promedio y total de reseñas de un vendedor
