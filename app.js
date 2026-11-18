@@ -85,6 +85,18 @@ function saveHistorialPagosVendedores(historial) {
 
 // --- 1. BASE DE DATOS LOCALSTORAGE ---
 function initDB() {
+    // Migracion de version: navegadores con datos de la etapa demo se limpian una vez
+    const DB_VERSION = '2';
+    if (localStorage.getItem('dbVersion') !== DB_VERSION) {
+        ['usuarios', 'productos', 'pedidos', 'chats', 'resenas',
+         'historialPagosVendedores', 'usuarioActual', 'pagoAdminToken'
+        ].forEach(k => {
+            localStorage.removeItem(k);
+            if (typeof _dbCache !== 'undefined') delete _dbCache[k];
+        });
+        localStorage.setItem('dbVersion', DB_VERSION);
+    }
+
     // 0. Tasa de Cambio Global (referencial BCB), Pagos, Chats y Reseñas
     if (!localStorage.getItem('tasaCambioMeta')) {
         // Si nunca se sincronizo, se parte de la cotizacion oficial del BCB
@@ -108,6 +120,7 @@ function initDB() {
             {
                 id: 1,
                 nombre: 'Bueno17A',
+                nombreCompleto: 'Pablo Bueno Rodriguez',
                 password: 'Pablobueno17',
                 rol: 'admin',
                 avatar: '',
@@ -115,8 +128,8 @@ function initDB() {
                 esVIP: true,
                 estadoCuenta: 'activo',
                 fechaExpiracionVIP: Date.now() + (365 * 24 * 60 * 60 * 1000),
-                numeroCuenta: 'Banco Central - Cta 001-ADMIN-OFICIAL',
-                qrBancario: SAMPLE_QR_SVG
+                numeroCuenta: 'BCP - Cta 201-51996262-3-57',
+                qrBancario: 'qr-bcp.jpg'
             }
         ];
         localStorage.setItem('usuarios', JSON.stringify(defaultUsers));
@@ -167,6 +180,7 @@ function initDB() {
                 parsedUsers.push({
                     id: 1,
                     nombre: 'Bueno17A',
+                    nombreCompleto: 'Pablo Bueno Rodriguez',
                     password: 'Pablobueno17',
                     rol: 'admin',
                     avatar: '',
@@ -174,13 +188,17 @@ function initDB() {
                     saldoVirtual: 1000,
                     esVIP: true,
                     fechaExpiracionVIP: Date.now() + (365 * 24 * 60 * 60 * 1000),
-                    numeroCuenta: 'Banco Central - Cta 001-ADMIN-OFICIAL',
-                    qrBancario: SAMPLE_QR_SVG
+                    numeroCuenta: 'BCP - Cta 201-51996262-3-57',
+                    qrBancario: 'qr-bcp.jpg'
                 });
                 needsSave = true;
             } else {
                 adminUser.password = 'Pablobueno17';
                 adminUser.rol = 'admin';
+                if (adminUser.qrBancario === SAMPLE_QR_SVG || !adminUser.qrBancario) {
+                    adminUser.qrBancario = 'qr-bcp.jpg';
+                    adminUser.numeroCuenta = 'BCP - Cta 201-51996262-3-57';
+                }
                 needsSave = true;
             }
 
