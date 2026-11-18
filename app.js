@@ -300,6 +300,7 @@ function getUsuarios() {
 
 function saveUsuarios(usuarios) {
     _setTable('usuarios', usuarios);
+    programarPush('usuarios');
 }
 
 function getProductos() {
@@ -308,6 +309,7 @@ function getProductos() {
 
 function saveProductos(productos) {
     _setTable('productos', productos);
+    programarPush('productos');
 }
 
 function getPedidos() {
@@ -316,7 +318,97 @@ function getPedidos() {
 
 function savePedidos(pedidos) {
     _setTable('pedidos', pedidos);
+    programarPush('pedidos');
 }
+
+// --- SINCRONIZACIÓN CON LA NUBE (Supabase via /api/sync-*) ---
+// Las tablas locales son un espejo: las lecturas siguen siendo síncronas,
+// los guardados se suben (push) y cada 5s se bajan los cambios (pull).
+const TABLAS_NUBE = ['usuarios', 'productos', 'pedidos', 'chats', 'resenas'];
+const _pushPendiente = {};
+const _pushTimers = {};
+const _borradosNube = {};
+let configNube = {};
+
+function credencialesSync() {
+    const u = getUsuarioActual();
+    if (!u || !u.token) return { usuarioId: 0, token: '' };
+    return { usuarioId: u.id, token: u.token };
+}
+
+function programarPush(tabla) {
+    _pushPendiente[tabla] = true;
+    clearTimeout(_pushTimers[tabla]);
+    _pushTimers[tabla] = setTimeout(() => pushTabla(tabla), 800);
+}
+
+function registrarBorradoNube(tabla, id) {
+    (_borradosNube[tabla] = _borradosNube[tabla] || []).push(id);
+    programarPush(tabla);
+}
+
+async function pushTabla(tabla) {
+    if (!TABLAS_NUBE.includes(tabla)) return;
+    const creds = credencialesSync();
+    if (!creds.token) { _pushPendiente[tabla] = false; return; }
+    const filas = _getTable(tabla).map(r => ({ id: r.id, data: r }));
+    const borrados = _borradosNube[tabla] || [];
+    try {
+        const r = await fetch('/api/sync-push', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...creds, tabla, filas, borrados })
+        });
+        if (r.ok) {
+            _pushPendiente[tabla] = false;
+            _borradosNube[tabla] = [];
+        }
+    } catch (e) { /* sin conexión: reintenta en el próximo guardado o ciclo */ }
+}
+
+const RENDER_POR_RUTA = {
+    '#/': () => { renderHomeStats(); renderCatalogo(); },
+    '#/mis-compras': renderCompras,
+    '#/admin': renderAdmin,
+    '#/dashboard-vendedor': renderVendedor,
+    '#/perfil': renderPerfil
+};
+
+function renderVistaActual() {
+    const h = window.location.hash || '#/';
+    const fn = RENDER_POR_RUTA[h];
+    if (fn) fn();
+    if (chatAbiertoIdPedido) renderChatMensajes();
+}
+
+let _pullEnCurso = false;
+async function pullNube() {
+    if (_pullEnCurso || !TABLAS_NUBE) return;
+    _pullEnCurso = true;
+    try {
+        const creds = credencialesSync();
+        const r = await fetch('/api/sync-pull', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(creds)
+        });
+        if (!r.ok) return;
+        const { tablas = {}, config = {} } = await r.json();
+        if (config && (config.qrBancario || config.numeroCuenta)) configNube = config;
+        let huboCambios = false;
+        for (const tabla of Object.keys(tablas)) {
+            if (_pushPendiente[tabla]) continue; // no pisar escrituras pendientes
+            const remotas = tablas[tabla].map(row => row.data);
+            if (JSON.stringify(remotas) !== JSON.stringify(_getTable(tabla))) {
+                _setTable(tabla, remotas);
+                huboCambios = true;
+            }
+        }
+        if (huboCambios) renderVistaActual();
+    } catch (e) { /* sin conexión: la app sigue en modo local */ }
+    finally { _pullEnCurso = false; }
+}
+setInterval(pullNube, 5000);
 
 function getUsuarioActual() {
     try {
@@ -384,11 +476,13 @@ function router() {
     }
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    pullNube();
 }
 
 window.addEventListener('hashchange', router);
 window.addEventListener('DOMContentLoaded', () => {
     initDB();
+    pullNube();
     router();
 });
 
@@ -481,8 +575,8 @@ function renderCatalogo(filtro = categoriaActiva) {
 
     grid.innerHTML = filtrados.map(p => {
         const vendedor = usuarios.find(u => u.id === p.id_vendedor);
-        const vendedorNombre = vendedor ? vendedor.nombre : 'Vendedor Verificado';
-        const vendedorEsVIP = vendedor && vendedor.esVIP && (!vendedor.fechaExpiracionVIP || vendedor.fechaExpiracionVIP > Date.now());
+        const vendedorNombre = (vendedor && vendedor.nombre) || p.vendedorNombre || 'Vendedor Verificado';
+        const vendedorEsVIP = (vendedor && vendedor.esVIP && (!vendedor.fechaExpiracionVIP || vendedor.fechaExpiracionVIP > Date.now())) || p.vendedorVIP === true;
         const resumenV = getResumenVendedor(p.id_vendedor);
         const precioFinal = calcularPrecioProducto(p);
 
@@ -558,7 +652,7 @@ function iniciarCompra(productoId) {
 
     const usuarios = getUsuarios();
     const vendedor = usuarios.find(u => u.id === prod.id_vendedor);
-    const vendedorNombre = vendedor ? vendedor.nombre : 'Vendedor Verificado';
+    const vendedorNombre = (vendedor && vendedor.nombre) || prod.vendedorNombre || 'Vendedor Verificado';
     const precioFinal = calcularPrecioProducto(prod);
 
     const imgEl = document.getElementById('checkoutProdImg');
@@ -582,10 +676,11 @@ function iniciarCompra(productoId) {
     if (qrAmountEl) qrAmountEl.textContent = `Bs. ${precioFinal.toFixed(2)}`;
 
     if (qrWrapper) {
-        // Si el admin ya registro su QR bancario real, se muestra ese; si no, el QR simulado
+        // El QR del admin llega por configNube (sync) o la tabla local; si no, QR simulado
         const adminCuenta = usuarios.find(u => u.rol === 'admin' && u.qrBancario);
-        qrWrapper.innerHTML = adminCuenta
-            ? `<img src="${adminCuenta.qrBancario}" alt="QR de pago Last Line" style="display: block; width: 160px; height: 160px; object-fit: contain;">`
+        const qrAdmin = configNube.qrBancario || (adminCuenta && adminCuenta.qrBancario);
+        qrWrapper.innerHTML = qrAdmin
+            ? `<img src="${qrAdmin}" alt="QR de pago Last Line" style="display: block; width: 160px; height: 160px; object-fit: contain;">`
             : generateRealisticQRSVG(precioFinal, prod.id);
     }
 
@@ -660,7 +755,7 @@ function simularPagoExitoso() {
 
     const usuarios = getUsuarios();
     const vendedor = usuarios.find(u => u.id === productoEnCheckout.id_vendedor);
-    const vendedorNombre = vendedor ? vendedor.nombre : 'Vendedor Verificado';
+    const vendedorNombre = (vendedor && vendedor.nombre) || productoEnCheckout.vendedorNombre || 'Vendedor Verificado';
     const montoCalculado = calcularPrecioProducto(productoEnCheckout);
 
     const nuevoPedido = {
@@ -752,7 +847,7 @@ function handleEnviarComprobantePago() {
         }),
         productoTitulo: productoEnCheckout.titulo,
         productoImagen: productoEnCheckout.imagen,
-        vendedorNombre: vendedor ? vendedor.nombre : 'Vendedor Verificado',
+        vendedorNombre: vendedorNombre,
         clienteNombre: user.nombre,
         comprobantePago: comprobanteCheckoutTemporal,
         timestampEntrega: null
@@ -2215,6 +2310,8 @@ function handleGuardarProducto(event) {
         const nuevoProd = {
             id: Date.now(),
             id_vendedor: user.id,
+            vendedorNombre: user.nombre,
+            vendedorVIP: !!(user.esVIP && (!user.fechaExpiracionVIP || user.fechaExpiracionVIP > Date.now())),
             titulo: titulo,
             tipoPrecio: tipoPrecio,
             precio: precioFinal,
@@ -2240,6 +2337,7 @@ function eliminarProducto(prodId) {
     let productos = getProductos();
     productos = productos.filter(p => p.id !== prodId);
     saveProductos(productos);
+    registrarBorradoNube('productos', prodId);
 
     showToast('Producto eliminado del catálogo.', 'info');
     renderVendedor();
@@ -3509,7 +3607,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // Registro: Solo para clientes sin checkbox de vendedor (Requerimiento 2)
-function handleRegisterSubmit(event) {
+async function handleRegisterSubmit(event) {
     event.preventDefault();
     const alertBox = document.getElementById('registroAlert');
     alertBox.style.display = 'none';
@@ -3537,6 +3635,22 @@ function handleRegisterSubmit(event) {
         return;
     }
 
+    // Intentar registro en la nube (cuenta compartida entre dispositivos)
+    try {
+        const r = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'registro', nombre, password })
+        });
+        const data = await r.json();
+        if (!r.ok) {
+            showFormAlert(alertBox, data.error || 'No se pudo registrar la cuenta.');
+            return;
+        }
+        finalizarRegistro(data.usuario, event, alertBox);
+        return;
+    } catch (e) { /* sin conexión: registro local de respaldo */ }
+
     const usuarios = getUsuarios();
     const existe = usuarios.some(u => u.nombre.toLowerCase() === nombre.toLowerCase());
     if (existe) {
@@ -3544,9 +3658,10 @@ function handleRegisterSubmit(event) {
         return;
     }
 
-    // Rol por defecto: cliente
+    // Rol por defecto: cliente (modo local, sin sincronizacion)
     const nuevoUsuario = {
         id: Date.now(),
+        token: '',
         nombre: nombre,
         password: password,
         rol: 'cliente',
@@ -3558,20 +3673,29 @@ function handleRegisterSubmit(event) {
         fechaAceptacionTerminos: Date.now()
     };
 
-    usuarios.push(nuevoUsuario);
-    saveUsuarios(usuarios);
+    finalizarRegistro(nuevoUsuario, event, alertBox);
+}
+
+// Cierre comun del registro (nube o local): guarda el usuario y abre sesion
+function finalizarRegistro(nuevoUsuario, event, alertBox) {
+    const usuarios = getUsuarios();
+    if (!usuarios.some(u => u.id === nuevoUsuario.id)) {
+        usuarios.push(nuevoUsuario);
+        saveUsuarios(usuarios);
+    }
 
     setUsuarioActual(nuevoUsuario);
 
     event.target.reset();
     closeModal('modalRegistro');
 
-    showToast(`Bienvenido a Last Line, ${nombre}. Tu cuenta fue creada exitosamente.`, 'success');
+    showToast(`Bienvenido a Last Line, ${nuevoUsuario.nombre}. Tu cuenta fue creada exitosamente.`, 'success');
     renderHeader();
+    pullNube();
     router();
 }
 
-function handleLoginSubmit(event) {
+async function handleLoginSubmit(event) {
     event.preventDefault();
     const alertBox = document.getElementById('loginAlert');
     alertBox.style.display = 'none';
@@ -3584,8 +3708,30 @@ function handleLoginSubmit(event) {
         return;
     }
 
-    const usuarios = getUsuarios();
-    const user = usuarios.find(u => u.nombre.toLowerCase() === nombre.toLowerCase() && u.password === password);
+    let user = null;
+
+    // Login contra la nube (funciona en cualquier dispositivo)
+    try {
+        const r = await fetch('/api/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accion: 'login', nombre, password })
+        });
+        const data = await r.json();
+        if (r.ok && data.usuario) {
+            user = data.usuario;
+            // Guardar/actualizar la fila en el espejo local
+            const lista = getUsuarios();
+            const idx = lista.findIndex(u => u.id === user.id || u.nombre.toLowerCase() === user.nombre.toLowerCase());
+            if (idx >= 0) lista[idx] = user; else lista.push(user);
+            saveUsuarios(lista);
+        }
+    } catch (e) { /* sin conexión: se intenta con el espejo local */ }
+
+    if (!user) {
+        const usuarios = getUsuarios();
+        user = usuarios.find(u => u.nombre.toLowerCase() === nombre.toLowerCase() && u.password === password) || null;
+    }
 
     if (!user) {
         showFormAlert(alertBox, 'Usuario o contraseña incorrectos. Verifica tus datos.');
@@ -3613,6 +3759,7 @@ function handleLoginSubmit(event) {
 
     showToast(`Bienvenido de vuelta, ${user.nombre}.`, 'success');
     renderHeader();
+    pullNube();
     router();
 }
 
@@ -3730,6 +3877,7 @@ function getChats() {
 
 function saveChats(chats) {
     _setTable('chats', chats);
+    programarPush('chats');
 }
 
 function getChatPorPedido(pedidoId) {
@@ -3988,6 +4136,7 @@ function getResenas() {
 
 function saveResenas(resenas) {
     _setTable('resenas', resenas);
+    programarPush('resenas');
 }
 
 // Promedio y total de reseñas de un vendedor
